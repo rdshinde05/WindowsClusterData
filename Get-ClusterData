@@ -1,0 +1,55 @@
+function Get-ClusterData {
+   
+        # Checking module
+        Try
+        {
+            Import-Module FailoverClusters -ErrorAction SilentlyContinue
+        }
+        Catch
+        {
+            $_.Exception.Message
+            Write-Output "Failover cluster module not installed!"
+            Break
+        }
+ 
+                    # Check if cluster service is running
+                    Try 
+                    { 
+                        If (!(Get-Service -ComputerName . |  Where-Object  {$_.Displayname -match "Cluster*"}).Status -eq "Running") {throw}
+                    }
+                    Catch 
+                    {
+                        Write-Warning 'Cluster service is not "Running"'
+                        Read-Host -Prompt "Press Enter to exit..."
+                        Break
+                    } 
+  
+                    Try
+                    {
+                        # If checks passed then get cluster information
+                        Invoke-Command -ComputerName . -ErrorAction Stop -ScriptBlock{                   
+                         
+                            Write-Output "Checking cluster recources:"
+                            Get-ClusterResource  | select ownernode,iscoreresource,name,resourcetype,state,characteristics | ft -auto
+  
+                            Write-Output "Checking cluster owner nodes:"
+                            Get-ClusterGroup  | select cluster,Iscoregroup,ownernode,state,name | sort state | ft -AutoSize
+  
+                            Write-Output "Checking cluster nodes:"
+                            Get-ClusterNode | select cluster,name,state,nodeweight | ft -auto
+  
+                            Write-Output "Checking file share witness availablity:"
+                            Get-ClusterResource | Where-Object  {$_.Name -eq "File Share Witness"}  | select name,state | ft -AutoSize
+                        }
+                    }
+                    Catch
+                    {
+                        $_.Exception.Message
+                        Break
+                    }
+     
+                }
+                Else
+                {
+                    Write-Warning "Server does not exist"
+                }
